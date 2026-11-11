@@ -56,7 +56,7 @@ describe('match flow with bots', T, () => {
       const you = bot.last('you');
       assert.ok(you, 'reset loadout should be sent as `you`');
       assert.deepEqual(you.mats, START_MATS);
-      assert.deepEqual(you.owned, [true, false, false, false]);
+      assert.deepEqual(you.owned, [true, false, false, false, false, true]);
       assert.equal(you.hp, PLAYER.MAX_HP);
       assert.equal(you.sh, 0);
       assert.equal(you.alive, true);

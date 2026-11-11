@@ -2,12 +2,13 @@
 // past and interpolated between server snapshots.
 import * as THREE from 'three';
 import { G, isVec3, isNum } from './state.js';
+import { WEAPONS, WEAPON_IDS } from '../shared/constants.js';
 
 const INTERP_MS = 100;
 const BUF = 12;
 const geo = new THREE.BoxGeometry(1, 1, 1);
 const SKIN = [0xf1c9a5, 0xd9a577, 0xb07b52, 0x8a5a3c, 0xf5d7b8];
-const HELD = [0x9aa3ad, 0x2d3b48, 0x23262b, 0x39463a];
+const HELD = [0x9aa3ad, 0x2d3b48, 0x23262b, 0x39463a, 0x4d5a3a, 0xdfe7ee];
 
 function hashId(id) {
   const s = String(id);
@@ -250,7 +251,11 @@ export class Avatars {
       a.legL.rotation.x = sw; a.legR.rotation.x = -sw;
       a.armL.rotation.x = -sw * 0.8;
       a.fireT = Math.max(0, a.fireT - dt);
-      const gun = a.slot > 0;
+      const hw = WEAPONS[WEAPON_IDS[a.slot]];
+      const gun = !!hw && !hw.melee;
+      // bazooka is a fat tube, the sword a long thin blade
+      const hs = a.slot === 4 ? 2.2 : 1, hl = a.slot === 5 ? 1.35 : 1;
+      if (a.held.userData.s !== a.slot) { a.held.userData.s = a.slot; a.held.scale.set(0.09 * hs, 0.6 * hl, 0.09 * hs); }
       const kick = a.fireT * (gun ? 1.2 : -6);
       a.armR.rotation.x = gun ? Math.PI / 2 + a.pitch + kick : sw * 0.8 + 0.25 + kick + (a.fireT > 0 ? 1.1 : 0);
       const hc = HELD[a.slot] !== undefined ? HELD[a.slot] : HELD[0];

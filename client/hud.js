@@ -1,6 +1,6 @@
 // DOM HUD: vitals, hotbar, materials, storm info, kill feed, chat, banners, crosshair
 // feedback. Values are cached so the DOM is only touched when something changed.
-import { WEAPONS, WEAPON_IDS, PIECES, PIECE_COST, MATS, MAT_BLOCK, BLOCKS, PLAYER, STATE, STORM_PHASES } from '../shared/constants.js';
+import { HOTBAR_SLOTS, WEAPONS, WEAPON_IDS, PIECES, PIECE_COST, MATS, MAT_BLOCK, BLOCKS, PLAYER, STATE, STORM_PHASES } from '../shared/constants.js';
 import { G } from './state.js';
 
 const $ = (id) => document.getElementById(id);
@@ -10,6 +10,8 @@ const ICONS = {
   rifle: svg('<path d="M1 9h6v2h14V9h3v2h7v2h-9v2h-4l-1 6h-4l1-6h-4l-2 5H5l1-5H1z"/>'),
   shotgun: svg('<path d="M1 9h9l2 1h19v3H20v3h-8v-3h-2l-3 6H3l2-6H1z"/>'),
   sniper: svg('<path d="M10 4h10v3h-2v2h13v2H20v2h-3l-1 5h-3l1-5H9l-3 6H2l2-7H1V9h13V7h-4z"/>'),
+  bazooka: svg('<path d="M1 7l4 1h17l3-2h6v10h-6l-3-2h-5l-1 6h-4l1-6H5l-4 1z"/>'),
+  sword: svg('<path d="M27 2l3 1 1 3-13 11 2 3-2 2-3-3-5 5-4-4 5-5-3-3 2-2 3 2z"/>'),
   wall: svg('<path d="M3 3h26v18H3zm2 2v6h10V5zm12 0v6h10V5zM5 13v6h6v-6zm8 0v6h14v-6z" fill-rule="evenodd"/>'),
   floor: svg('<path d="M8 8h22l-6 10H2z"/>'),
   ramp: svg('<path d="M2 21h28V3z"/>'),
@@ -41,7 +43,7 @@ export class Hud {
       'loading', 'loading-text', 'conn', 'lives', 'lives-stat', 'target-label', 'gains', 'board']) this.e[id] = $(id);
     this.cache = Object.create(null);
     this.slots = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < HOTBAR_SLOTS; i++) {
       const s = el('div', 'slot');
       s.append(el('span', 'key', String(i + 1)), el('span', 'ico'), el('span', 'sub'));
       this.e.hotbar.append(s);
@@ -290,9 +292,11 @@ export class Hud {
     }
 
     this.set('hbc', e.hotbar, 'class', build.active ? 'build' : '');
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < HOTBAR_SLOTS; i++) {
       const s = this.slots[i];
-      if (build.active) {
+      if (build.active && i >= PIECES.length) {
+        this.set('slc' + i, s.root, 'class', 'slot gone'); // only four build pieces
+      } else if (build.active) {
         const p = PIECES[i];
         this.set('ico' + i, s.ico, 'html', ICONS[p]);
         this.set('sub' + i, s.sub, 'text', `${p} · ${PIECE_COST[p]}`);
@@ -300,7 +304,7 @@ export class Hud {
       } else {
         const id = WEAPON_IDS[i], w = WEAPONS[id], owned = you.owned[i];
         this.set('ico' + i, s.ico, 'html', ICONS[id]);
-        this.set('sub' + i, s.sub, 'text', !owned ? '—' : w.mag > 0 ? `${you.ammo[i]} / ${you.reserve[i]}` : 'Harvest');
+        this.set('sub' + i, s.sub, 'text', !owned ? '—' : w.mag > 0 ? `${you.ammo[i]} / ${you.reserve[i]}` : id === 'pickaxe' ? 'Harvest' : 'Melee');
         const dry = owned && w.mag > 0 && you.ammo[i] <= 0;
         this.set('slc' + i, s.root, 'class', 'slot' + (you.slot === i ? ' sel' : '') + (owned ? '' : ' empty') + (dry ? ' dry' : ''));
       }

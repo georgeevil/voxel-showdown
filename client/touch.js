@@ -6,6 +6,7 @@ import { G } from './state.js';
 
 const LOOK_GAIN = 2.3;   // touch pixels are worth more than mouse counts
 const STICK_R = 56;      // px of travel for full speed
+const FIRE_SLOP = 18;    // px the fire thumb may roll or slip before it starts steering the aim
 
 function btn(root, cls, label) {
   const b = document.createElement('div');
@@ -20,6 +21,7 @@ export class TouchControls {
     this.input = input;
     this.stickId = null; this.lookId = null; this.fireId = null;
     this.sx = 0; this.sy = 0; this.lx = 0; this.ly = 0;
+    this.fx = 0; this.fy = 0; this.fireDrag = false; // the fire thumb tracks its own position
 
     const root = this.root = document.createElement('div');
     root.id = 'touch';
@@ -70,9 +72,17 @@ export class TouchControls {
           input.moveX = Math.abs(ax) < dead ? 0 : ax;
           input.moveY = Math.abs(ay) < dead ? 0 : ay;
           input.touchSprint = d >= STICK_R * 0.97 && ay > 0.6;
-        } else if (t.identifier === this.lookId || t.identifier === this.fireId) {
+        } else if (t.identifier === this.lookId) {
           if (G.locked) { input.dx += (t.clientX - this.lx) * LOOK_GAIN; input.dy += (t.clientY - this.ly) * LOOK_GAIN; }
           this.lx = t.clientX; this.ly = t.clientY;
+        } else if (t.identifier === this.fireId) {
+          // A press is never a perfectly still point: ignore small rolls and slips, and
+          // only steer once the thumb has clearly been dragged. No jump when it starts.
+          if (!this.fireDrag) {
+            if (Math.hypot(t.clientX - this.fx, t.clientY - this.fy) < FIRE_SLOP) continue;
+            this.fireDrag = true;
+          } else if (G.locked) { input.dx += (t.clientX - this.fx) * LOOK_GAIN; input.dy += (t.clientY - this.fy) * LOOK_GAIN; }
+          this.fx = t.clientX; this.fy = t.clientY;
         }
       }
     };
@@ -93,7 +103,7 @@ export class TouchControls {
       if (!G.locked || this.fireId !== null) return;
       const t = e.changedTouches[0];
       this.fireId = t.identifier;
-      if (this.lookId === null) { this.lx = t.clientX; this.ly = t.clientY; }
+      this.fx = t.clientX; this.fy = t.clientY; this.fireDrag = false;
       input.keyFire = true; input.lmbPressed = true; input._sync();
       fire.classList.add('down');
       if (input.onClick) input.onClick(0);

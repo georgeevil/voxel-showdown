@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voxel Showdown</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23141c2e'/%3E%3Crect x='3' y='7' width='10' height='6' fill='%238a5a3b'/%3E%3Crect x='3' y='4' width='10' height='4' fill='%236fc24f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/client/style.css">
+<script type="importmap">
+{ "imports": { "three": "/vendor/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="fx-water" class="fx"></div>
+  <div id="fx-storm" class="fx"></div>
+  <div id="fx-damage" class="fx"></div>
+  <div id="fx-scope" class="fx"><div class="scope-h"></div><div class="scope-v"></div></div>
+
+  <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmark"><i></i><i></i><i></i><i></i></div>
+  <div id="dmgnum"></div>
+  <div id="hurt-dir"><span></span></div>
+  <div id="reload"><div id="reload-fill"></div><span>Reloading</span></div>
+  <div id="prompt"></div>
+  <div id="target-label"></div>
+  <div id="gains"></div>
+
+  <div id="topleft">
+    <div id="minimap-wrap"><canvas id="minimap" width="176" height="176"></canvas><span class="north">N</span></div>
+    <div id="storm-box">
+      <div id="storm-text">Storm asleep</div>
+      <div id="storm-time"></div>
+    </div>
+  </div>
+
+  <div id="top">
+    <div class="stat"><span class="lbl">Alive</span><span id="alive" class="val">0</span></div>
+    <div class="stat"><span class="lbl">Kills</span><span id="kills" class="val">0</span></div>
+    <div class="stat lives hidden" id="lives-stat"><span class="lbl">Lives</span><span id="lives" class="val"></span></div>
+  </div>
+
+  <div id="killfeed"></div>
+  <div id="board"></div>
+
+  <div id="banner"><div id="banner-main"></div><div id="banner-sub"></div></div>
+  <div id="toast"></div>
+  <div id="spectate"></div>
+
+  <div id="chat">
+    <div id="chat-log"></div>
+    <input id="chat-input" type="text" maxlength="120" placeholder="Message — Enter to send" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div id="vitals">
+    <div class="bar shield"><div class="fill" id="sh-fill"></div><div class="ticks"></div><span class="num" id="sh-num">0</span><span class="tag">Shield</span></div>
+    <div class="bar health"><div class="fill" id="hp-fill"></div><div class="ticks"></div><span class="num" id="hp-num">100</span><span class="tag">Health</span></div>
+  </div>
+
+  <div id="center-bottom">
+    <div id="mode"></div>
+    <div id="hotbar"></div>
+  </div>
+
+  <div id="mats"></div>
+  <div id="debug"></div>
+  <div id="loading"><div class="spinner"></div><span id="loading-text">Generating island…</span></div>
+  <div id="conn">Connection lost — reconnecting…</div>
+</div>
+
+<div id="overlay">
+  <div class="card">
+    <header>
+      <div class="logo"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <h1>Voxel Showdown</h1>
+        <p class="tagline">Harvest. Build. Outlast the storm.</p>
+      </div>
+    </header>
+
+    <div id="touch-note" class="note hidden">This game needs a keyboard and a mouse — open it on a laptop or desktop.</div>
+    <div id="webgl-note" class="note hidden">WebGL could not start in this browser, so the island cannot be drawn.</div>
+
+    <form id="name-form" autocomplete="off">
+      <label for="name-input">Your name</label>
+      <div class="row">
+        <input id="name-input" type="text" maxlength="16" placeholder="Player" spellcheck="false">
+        <button id="join-btn" type="submit" class="primary">Join</button>
+      </div>
+      <div id="join-status" class="dim"></div>
+    </form>
+
+    <div id="menu" class="hidden">
+      <div class="menu-grid">
+        <section>
+          <h2><span id="match-status">Lobby</span></h2>
+          <ul id="players"></ul>
+        </section>
+        <section>
+          <h2>Match</h2>
+          <label class="slider"><span>Bots</span><input id="bots" type="range" min="0" max="10" value="4"><b id="bots-val">4</b></label>
+          <div class="seg-row"><span>Island</span><div id="theme" class="seg wrap"></div></div>
+          <div class="seg-row"><span>Bot skill</span><div id="difficulty" class="seg"></div></div>
+          <button id="start-btn" type="button" class="primary wide">Start match</button>
+          <button id="resume-btn" type="button" class="wide">Enter island</button>
+          <div class="seg-row"><span>Your head</span><div id="heads" class="seg wrap"></div></div>
+          <div class="seg-row"><span>Graphics</span><div id="gfx" class="seg"></div></div>
+          <label class="slider"><span>Aim speed</span><input id="sens" type="range" min="0.3" max="3" step="0.1" value="1"><b id="sens-val">1.0×</b></label>
+          <label class="check"><input id="touchpad" type="checkbox"><span>Touchpad mode <small class="dim">aim assist on guns · <kbd>F</kbd> fire · <kbd>C</kbd> toggle aim · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> fine-aim</small></span></label>
+          <p class="dim small" id="menu-hint">Roam the lobby island freely. Anyone can start the match.</p>
+        </section>
+      </div>
+    </div>
+
+    <div id="lan" class="lan hidden"><span>Friends on your Wi-Fi open:</span> <span id="lan-urls"></span></div>
+
+    <details id="controls" open>
+      <summary>Controls</summary>
+      <div class="keys">
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys: move</div>
+        <div><kbd>Space</kbd> jump · <kbd>Shift</kbd> sprint</div>
+        <div><kbd>LMB</kbd> or <kbd>F</kbd> swing / fire / place</div>
+        <div><kbd>RMB</kbd> hold or <kbd>C</kbd> toggle: aim (scope on sniper)</div>
+        <div><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> look with the keyboard</div>
+        <div>With bots you get 2 extra lives</div>
+        <div><kbd>1</kbd>–<kbd>4</kbd> or wheel: pick slot</div>
+        <div><kbd>R</kbd> reload · <kbd>E</kbd> open chest</div>
+        <div><kbd>Q</kbd>/<kbd>B</kbd> build mode</div>
+        <div>build: <kbd>1</kbd>–<kbd>4</kbd> piece · <kbd>R</kbd> rotate · <kbd>G</kbd>/wheel material</div>
+        <div><kbd>Enter</kbd> chat · <kbd>Tab</kbd> player list · <kbd>M</kbd> mute · <kbd>F3</kbd> or <kbd>P</kbd> speed stats</div>
+        <div><kbd>Esc</kbd> this menu (game keeps running)</div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script type="module" src="/client/main.js"></script>
+</body>
+</html>

@@ -247,3 +247,32 @@ label.check small { display: block; font-weight: 400; margin-top: 2px; line-heig
 #board .more { color: var(--dim); font-size: 11px; margin-top: 3px; }
 body.perf-low #hud::before { display: none; }
 #theme.seg.wrap button { flex: 1 0 30%; }
+
+/* ---- touch controls ---- */
+#touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 5; touch-action: none; -webkit-touch-callout: none; }
+body.touch #touch { display: block; }
+body.touch canvas#game, body.touch #touch { touch-action: none; }
+body.touch #overlay:not(.hidden) ~ #touch, body.touch.menu-open #touch { display: none; }
+.tbtn { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; pointer-events: auto; touch-action: none;
+  background: rgba(10, 16, 28, 0.42); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.tbtn.down { background: rgba(255, 194, 74, 0.55); border-color: var(--amber); }
+.tbtn.fire { right: 28px; bottom: 150px; width: 96px; height: 96px; font-size: 14px; background: rgba(220, 60, 60, 0.4); border-color: rgba(255, 140, 140, 0.8); }
+.tbtn.jump { right: 140px; bottom: 112px; width: 72px; height: 72px; }
+.tbtn.aim { right: 34px; bottom: 262px; width: 62px; height: 62px; }
+.tbtn.reload { right: 134px; bottom: 200px; width: 62px; height: 62px; font-size: 10px; }
+.tbtn.build { right: 220px; bottom: 120px; width: 60px; height: 60px; }
+.tbtn.use { right: 212px; bottom: 196px; width: 66px; height: 66px; display: none; background: rgba(255, 194, 74, 0.5); border-color: var(--amber); }
+#touch.chest .tbtn.use { display: flex; }
+.tbtn.mat { right: 290px; bottom: 120px; width: 60px; height: 60px; font-size: 8.5px; display: none; }
+#touch.building .tbtn.mat { display: flex; }
+#touch.building .tbtn.aim { display: none; }
+#touch.building .tbtn.build { background: rgba(111, 227, 154, 0.5); border-color: var(--mint); }
+.tbtn.menu { left: 50%; top: 58px; margin-left: -22px; width: 44px; height: 44px; font-size: 20px; border-radius: 12px; }
+.stick-base { position: absolute; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; background: rgba(10, 16, 28, 0.28); border: 2px solid rgba(255, 255, 255, 0.35); display: none; }
+.stick-base.on { display: block; }
+.stick-knob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); transform: translate(-50%, -50%); }
+body.touch #hotbar .slot, body.touch #board { pointer-events: auto; touch-action: none; }
+body.touch #vitals { bottom: auto; top: 250px; width: 220px; }
+body.touch #mats { bottom: 16px; }
+body.touch #chat, body.touch #controls { display: none; }
+body.touch #touch-note { display: block !important; }

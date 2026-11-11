@@ -33,6 +33,10 @@ use another port. If nobody else can connect, allow Node through your firewall.
 | P or F3 | Speed stats (fps, ping) |
 | Enter, M, Esc | Chat, mute, menu |
 
+On a tablet or phone the game switches to touch controls on the first touch: left thumb
+moves (push far forward to sprint), drag on the right to look, hold FIRE to shoot, tap a
+weapon slot to switch, ☰ opens the menu. Touch code lives in `client/touch.js`.
+
 The Esc menu has bot count and skill, island theme, your head, graphics quality, aim
 speed and touchpad mode.
 

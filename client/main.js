@@ -18,6 +18,7 @@ import { AudioFx } from './audio.js';
 import { Hud } from './hud.js';
 import { Minimap } from './minimap.js';
 import { Lobby } from './lobby.js';
+import { TouchControls } from './touch.js';
 
 const BASE_FOV = 75;
 const SENS = 0.0023;
@@ -40,6 +41,7 @@ const build = new BuildMode(scene, net);
 const combat = new Combat({ net, player, input, audio, hud, vm, fx, build });
 const lobby = new Lobby({ net, input, audio });
 if (!renderer) lobby.showWebglError();
+const touch = new TouchControls(input, canvas);
 
 const eye = [0, 0, 0], dir = [0, 0, -1], tmpCol = [0, 0, 0], tmpO = [0, 0, 0], tmpD = [0, 0, 0];
 const storm = { x: WORLD.SX / 2, z: WORLD.SZ / 2, r: 125 }; // smoothed for drawing
@@ -487,7 +489,7 @@ let assistOn = false;
 const ASSIST_CONE = 0.13; // radians
 function aimAssist(dt, canAct, mdx, mdy) {
   assistOn = false;
-  if (!G.settings.touchpad || !canAct || build.active || G.you.slot === 0 || !G.world || G.state !== STATE.PLAYING) return;
+  if (!(G.settings.touchpad || input.touchMode) || !canAct || build.active || G.you.slot === 0 || !G.world || G.state !== STATE.PLAYING) return;
   let best = null, bestAng = ASSIST_CONE, bx = 0, by = 0, bz = 0, bd = 0;
   for (const c of avatars.map.values()) {
     if (!c.alive || !(c.n > 0)) continue;
@@ -569,6 +571,7 @@ function frame() {
   if (alive) { eye[0] = cam.position.x; eye[1] = cam.position.y; eye[2] = cam.position.z; }
 
   aimAssist(dt, canAct, mdx, mdy);
+  touch.update(build.active, combat.chest);
   combat.update(now, dt, eye, dir, canAct);
   if (alive) build.update(world, eye, dir, player.yaw, player.pos, avatars); else build.ghost.visible = false;
   const scoped = combat.weaponId === 'sniper' && !build.active;
@@ -601,7 +604,7 @@ function frame() {
   }
 
   if (G.joined) {
-    hud.prompt(combat.chest && alive ? 'E' : '', 'Open chest');
+    hud.prompt(combat.chest && alive && !input.touchMode ? 'E' : '', 'Open chest');
     const tb = alive && !build.active && you.slot === 0 && combat.target && !combat.chest ? TARGET_INFO[combat.target.block] : null;
     if (tb) hud.targetLabel(tb[0], tb[1], tb[2]); else hud.targetLabel('');
     hud.setSpectate(inGame && !you.alive ? specName : '');

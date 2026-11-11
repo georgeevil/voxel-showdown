@@ -19,6 +19,8 @@ export class Input {
     this.onWheel = null;     // (dir) => void
     this.onLock = null;      // (locked) => void
     this.onClick = null;     // (button) => void while locked
+    this.touchMode = false;  // set by TouchControls on the first touch
+    this.moveX = 0; this.moveY = 0; this.touchSprint = false; // analogue stick
     this.onTouchpad = null;  // () => void, once, when scrolling looks like a touchpad
     this.mouseL = false; this.mouseR = false; this.keyFire = false; this.zoomToggle = false;
     this.wheelAcc = 0; this.wheelAt = 0; this.wheelLast = 0; this.padVotes = 0; this.padSeen = false;
@@ -98,12 +100,17 @@ export class Input {
     this.keys.clear();
     this.mouseL = this.mouseR = this.keyFire = this.zoomToggle = false;
     this.lmb = this.rmb = this.lmbPressed = false;
+    this.moveX = this.moveY = 0; this.touchSprint = false;
     this.dx = this.dy = 0;
   }
 
   // Browsers refuse a re-lock for about a second after Esc; retry once inside the
   // user-activation window so a quick click on Resume still works.
   lock(retry = true) {
+    if (this.touchMode) { // no pointer lock on touch devices: lock virtually
+      if (!G.locked) { G.locked = true; if (this.onLock) this.onLock(true); }
+      return;
+    }
     const again = () => { if (retry && !G.locked) setTimeout(() => { if (!G.locked) this.lock(false); }, 1100); };
     try {
       const p = this.canvas.requestPointerLock();
@@ -112,8 +119,16 @@ export class Input {
   }
 
   unlock() {
+    if (this.touchMode && !document.pointerLockElement) {
+      if (G.locked) { G.locked = false; this.reset(); if (this.onLock) this.onLock(false); }
+      return;
+    }
     try { if (document.pointerLockElement) document.exitPointerLock(); } catch { /* ignore */ }
   }
+
+  // on-screen buttons: behave like a key press
+  press(code) { if (G.locked && !G.chatting && this.onKey) this.onKey(code); }
+  pressAny(code) { if (this.onAnyKey) this.onAnyKey(code, { preventDefault() {}, target: null }); }
 
   down(code) { return this.keys.has(code); }
 }

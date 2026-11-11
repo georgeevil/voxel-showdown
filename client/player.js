@@ -55,8 +55,12 @@ export class LocalPlayer {
     // WASD or the arrow keys
     inp.fwd = ctl ? (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0) : 0;
     inp.right = ctl ? (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0) : 0;
+    if (ctl && (input.moveX || input.moveY)) { // touch stick
+      inp.fwd = Math.max(-1, Math.min(1, inp.fwd + input.moveY));
+      inp.right = Math.max(-1, Math.min(1, inp.right + input.moveX));
+    }
     inp.jump = !!(ctl && input.down('Space'));
-    inp.sprint = !!(ctl && (input.down('ShiftLeft') || input.down('ShiftRight')) && inp.fwd > 0);
+    inp.sprint = !!(ctl && (input.down('ShiftLeft') || input.down('ShiftRight') || input.touchSprint) && inp.fwd > 0);
     inp.yaw = this.yaw;
 
     // recoil spring

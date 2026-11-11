@@ -45,7 +45,7 @@ function think(game, bot, ai) {
   // nearest living combatants within sight; line-of-sight test on the closest few only
   const near = [];
   for (const q of game.players.values()) {
-    if (q === bot || !q.alive) continue;
+    if (q === bot || !q.alive || (bot.team && q.team === bot.team)) continue;
     const d = Math.hypot(q.p[0] - bot.p[0], q.p[1] - bot.p[1], q.p[2] - bot.p[2]);
     if (d <= sight) near.push([d, q]);
   }

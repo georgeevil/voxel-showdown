@@ -279,3 +279,7 @@ body.touch #touch-note { display: block !important; }
 
 .slot.gone { display: none; }
 #hotbar .slot { width: 74px; }
+
+#board .row.mate { color: var(--mint); }
+#board .head.foes { margin-top: 7px; }
+#mode-pick button { font-size: 11px; }

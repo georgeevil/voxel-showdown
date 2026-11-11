@@ -112,3 +112,46 @@ describe('sword and bazooka', T, () => {
     assert.ok(pa.hp < PLAYER.MAX_HP && pa.hp > PLAYER.MAX_HP - 60, `self damage is reduced, hp ${pa.hp}`);
   });
 });
+
+describe('team mode: humans together against the bots', T, () => {
+  let ctx, game, a, b;
+  before(async () => { ctx = await boot(); game = ctx.game; a = await ctx.client('KidOne'); b = await ctx.client('KidTwo'); }, T);
+  after(async () => { if (ctx) await ctx.close(); }, T);
+
+  test('teams are assigned, no friendly fire, and the match ends when one side is gone', T, async () => {
+    await fresh(a, b);
+    a.send({ t: 'start', bots: 0, mode: 'team' }); // 0 bots is bumped to 1: a team match needs an enemy
+    const st0 = await a.waitFor('state', (m) => m.state === STATE.COUNTDOWN);
+    assert.equal(st0.mode, 'team');
+    const pa = ctx.player(a.id), pb = ctx.player(b.id);
+    const bots = [...game.players.values()].filter((p) => p.bot);
+    assert.equal(bots.length, 1);
+    assert.equal(pa.team, 1); assert.equal(pb.team, 1); assert.equal(bots[0].team, 2);
+    game.setState(STATE.PLAYING);
+    const bot = bots[0];
+    bot.p = [20.5, 46, 20.5]; // park the bot far away in the sky so it cannot interfere
+    // friendly fire: a rifle shot straight at a teammate does nothing
+    game.grant(a.id, 'rifle'); game.selectSlot(pa, 1);
+    pa.p = [80.5, 46, 80.5]; pb.p = [80.5, 46, 76.5];
+    assert.equal(game.fire(pa, game.eyeOf(pa), [0, -0.15, -1], true), true);
+    assert.equal(pb.hp, PLAYER.MAX_HP, 'teammate takes no damage');
+    assert.equal(game.damage(pb, 30, pa, 'rifle'), false);
+    assert.equal(pb.hp, PLAYER.MAX_HP);
+    // enemies still take damage
+    bot.protectT = 0;
+    game.damage(bot, 30, pa, 'rifle');
+    assert.ok(bot.hp < PLAYER.MAX_HP, 'bot takes damage');
+    // one human fully out (no lives left): the match goes on while a teammate stands
+    pb.lives = 0; pb.protectT = 0;
+    game.kill(pb, bot, 'rifle');
+    assert.equal(game.state, STATE.PLAYING);
+    // last bot down: the players win as a team
+    a.mark();
+    game.kill(bot, pa, 'rifle');
+    game.flush();
+    const end = await a.waitFor('state', (m) => m.state === STATE.ENDED);
+    assert.equal(end.winnerTeam, 1);
+    assert.equal(end.winner, null);
+    assert.equal(end.winnerName, 'The players');
+  });
+});

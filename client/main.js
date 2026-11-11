@@ -120,6 +120,8 @@ function setState(state, m) {
     if (isNum(m.timer)) G.timer = m.timer;
     G.winner = m.winner !== undefined ? m.winner : null;
     G.winnerName = typeof m.winnerName === 'string' ? m.winnerName : '';
+    G.winnerTeam = isNum(m.winnerTeam) ? m.winnerTeam : 0;
+    if (m.mode === 'team' || m.mode === 'solo') G.mode = m.mode;
   }
   if (prev === state) return;
   lastCount = -1;
@@ -128,17 +130,19 @@ function setState(state, m) {
     G.livesMode = false;
     hud.banner('Get ready', 'Dropping onto a fresh island', 2, '');
   } else if (state === STATE.PLAYING) {
-    hud.banner('Fight!', 'Last one standing wins', 2.2, '');
+    hud.banner('Fight!', G.mode === 'team' ? 'Work together — beat the bots' : 'Last one standing wins', 2.2, '');
     audio.go();
     wasShrinking = false;
   } else if (state === STATE.ENDED) {
-    const mine = G.winner !== null && G.winner === G.id;
+    const teamWin = G.winnerTeam > 0 && G.winnerTeam === G.team;
+    const mine = teamWin || (G.winner !== null && G.winner === G.id);
     const name = G.winnerName || (G.winner !== null ? playerName(G.winner) : '');
-    hud.banner(mine ? 'Victory!' : name ? `${name} wins` : 'Match over', mine ? 'You outlasted everyone' : 'Back to the lobby shortly', 7, mine ? 'win' : '');
+    hud.banner(mine ? 'Victory!' : name ? `${name} wins` : 'Match over', teamWin ? 'Your team beat the bots' : mine ? 'You outlasted everyone' : 'Back to the lobby shortly', 7, mine ? 'win' : '');
     if (mine) audio.win(); else audio.lose();
   } else if (state === STATE.LOBBY) {
     G.spectating = null;
     G.livesMode = false;
+    G.team = 0;
     if (prev !== STATE.LOBBY) hud.banner('Lobby', 'Roam freely — press Esc to start a match', 3, '');
   }
   lobby.refresh(true);
@@ -218,6 +222,7 @@ net.on('snap', (m) => {
       e.alive = p.alive !== false;
       if (isNum(p.k)) e.kills = p.k;
       if (isNum(p.l)) e.lives = p.l;
+      if (isNum(p.tm)) { e.team = p.tm; if (p.id === G.id) G.team = p.tm; }
     }
   }
   applyStorm(m.storm);
@@ -509,7 +514,7 @@ function aimAssist(dt, canAct, mdx, mdy) {
   if (!(G.settings.touchpad || input.touchMode) || !canAct || build.active || G.you.slot === 0 || !G.world || G.state !== STATE.PLAYING) return;
   let best = null, bestAng = ASSIST_CONE, bx = 0, by = 0, bz = 0, bd = 0;
   for (const c of avatars.map.values()) {
-    if (!c.alive || !(c.n > 0)) continue;
+    if (!c.alive || !(c.n > 0) || (G.team && c.team === G.team)) continue;
     const dx = c.pos.x - eye[0], dy = c.pos.y + 1.1 - eye[1], dz = c.pos.z - eye[2];
     const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (d < 1.5 || d > 70) continue;
@@ -629,6 +634,13 @@ function frame() {
     hudOpts.underwater = cam.position.y < WORLD.SEA - 0.2; hudOpts.build = build;
     hudOpts.spread = combat.spread; hudOpts.showCross = alive;
     hud.frame(dt, hudOpts);
+    let nm = 0;
+    if (G.team) {
+      for (const c of avatars.map.values()) {
+        if (c.alive && c.n > 0 && c.team === G.team && nm < 30) { mates[nm++] = c.pos.x; mates[nm++] = c.pos.z; }
+      }
+    }
+    minimap.mates = mates; minimap.mateN = nm;
     minimap.draw(dt, alive ? player.pos[0] : cam.position.x, alive ? player.pos[2] : cam.position.z, player.yaw, Object.assign(mmStorm, st, storm), stormOn);
     if (hud.debugOn) {
       hud.setDebug(`fps ${fps.toFixed(0)}  frame ${(1000 / Math.max(fps, 1)).toFixed(0)} ms  ping ${net.ping} ms\nrender ${renderer ? Math.round(innerWidth * renderer.scale) + 'x' + Math.round(innerHeight * renderer.scale) + ' (' + renderer.scale.toFixed(2) + 'x, ' + G.settings.gfx + ')' : 'off'}  hitches ${hitches}\ngame code ${jsMs.toFixed(1)} ms of each frame${renderer && renderer.lite ? '  lite' : ''}\ngpu ${renderer ? renderer.gpu.slice(0, 60) : '-'}${renderer && renderer.software ? '  << SOFTWARE RENDERING' : ''}\ntris ${debug.triangles}  dirty ${debug.dirtyChunks}\npos ${player.pos[0].toFixed(1)} ${player.pos[1].toFixed(1)} ${player.pos[2].toFixed(1)}\nstate ${G.state}  players ${G.players.size}`);
@@ -655,6 +667,7 @@ function frame() {
   jsMs += (performance.now() - jsT0 - jsMs) * 0.05;
 }
 const mmStorm = {};
+const mates = new Float32Array(32);
 const FIRE = [1, 0.5, 0.1];
 // block id -> [name, what the pickaxe yields, material]
 const TARGET_INFO = {

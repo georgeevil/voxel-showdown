@@ -81,6 +81,13 @@ export class Minimap {
         }
       }
     }
+    // teammates
+    if (this.mateN > 0) {
+      g.fillStyle = '#6fe39a'; g.strokeStyle = '#0b1220'; g.lineWidth = 1.5;
+      for (let i = 0; i < this.mateN; i += 2) {
+        g.beginPath(); g.arc(this.mates[i] * s, this.mates[i + 1] * s, 3.5, 0, Math.PI * 2); g.fill(); g.stroke();
+      }
+    }
     // self arrow (yaw 0 faces -Z = up on the map; positive yaw turns left)
     g.translate(px * s, pz * s);
     g.rotate(-yaw);

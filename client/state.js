@@ -32,12 +32,15 @@ export const G = {
   locked: false,     // pointer lock held
   chatting: false,   // chat input focused
   spectating: null,  // id being watched while dead
+  mode: 'solo',      // 'team' = humans together against the bots
+  team: 0,           // my team this match (0 = none)
+  winnerTeam: 0,
   livesMode: false,  // this match hands out respawns (set when the server reports lives)
   settings: loadSettings(),
 };
 
 function loadSettings() {
-  const s = { sens: 1, touchpad: false, touchpadChosen: false, head: -1, difficulty: 'normal', gfx: 'auto', theme: 'random' };
+  const s = { sens: 1, touchpad: false, touchpadChosen: false, head: -1, difficulty: 'normal', gfx: 'auto', theme: 'random', mode: 'team' };
   try {
     const j = JSON.parse(localStorage.getItem('vs_settings') || '{}');
     if (typeof j.sens === 'number' && j.sens >= 0.2 && j.sens <= 4) s.sens = j.sens;
@@ -46,11 +49,12 @@ function loadSettings() {
     if (typeof j.difficulty === 'string') s.difficulty = j.difficulty;
     if (['auto', 'low', 'medium', 'high'].includes(j.gfx)) s.gfx = j.gfx;
     if (typeof j.theme === 'string') s.theme = j.theme;
+    if (j.mode === 'solo' || j.mode === 'team') s.mode = j.mode;
   } catch { /* private mode or bad JSON */ }
   return s;
 }
 export function saveSettings() {
-  try { localStorage.setItem('vs_settings', JSON.stringify({ sens: G.settings.sens, touchpad: G.settings.touchpad, head: G.settings.head, difficulty: G.settings.difficulty, gfx: G.settings.gfx, theme: G.settings.theme })); } catch { /* ignore */ }
+  try { localStorage.setItem('vs_settings', JSON.stringify({ sens: G.settings.sens, touchpad: G.settings.touchpad, head: G.settings.head, difficulty: G.settings.difficulty, gfx: G.settings.gfx, theme: G.settings.theme, mode: G.settings.mode })); } catch { /* ignore */ }
 }
 
 const isNum = (v) => typeof v === 'number' && v === v;

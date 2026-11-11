@@ -42,12 +42,12 @@ function makeTag(name) {
   drawTag(sprite, name);
   return sprite;
 }
-function drawTag(sprite, name) {
+function drawTag(sprite, name, mate = false) {
   const c = sprite.userData.canvas, g = c.getContext('2d');
   g.clearRect(0, 0, 256, 64);
   g.font = '600 30px system-ui, sans-serif';
   const w = Math.min(240, g.measureText(name).width + 28);
-  g.fillStyle = 'rgba(10,16,28,0.62)';
+  g.fillStyle = mate ? 'rgba(22,120,62,0.85)' : 'rgba(10,16,28,0.62)';
   g.beginPath();
   if (g.roundRect) g.roundRect(128 - w / 2, 10, w, 44, 12); else g.rect(128 - w / 2, 10, w, 44);
   g.fill();
@@ -56,6 +56,7 @@ function drawTag(sprite, name) {
   g.fillText(name, 128, 33, 230);
   sprite.material.map.needsUpdate = true;
   sprite.userData.name = name;
+  sprite.userData.mate = mate;
 }
 
 // Head styles (index matches HEADS in shared/constants.js). Each adds a few boxes to the
@@ -132,7 +133,7 @@ class Avatar {
     this.w = 0;
     this.pos = new THREE.Vector3();
     this.yaw = 0; this.pitch = 0;
-    this.alive = true; this.slot = 0; this.hp = 100; this.sh = 0;
+    this.alive = true; this.slot = 0; this.hp = 100; this.sh = 0; this.team = 0;
     this.walkT = 0; this.walkAmp = 0; this.fireT = 0;
   }
 
@@ -229,6 +230,7 @@ export class Avatars {
       if (isNum(p.slot)) a.slot = p.slot | 0;
       if (isNum(p.hp)) a.hp = p.hp;
       if (isNum(p.sh)) a.sh = p.sh;
+      if (isNum(p.tm)) a.team = p.tm;
     }
   }
 
@@ -261,7 +263,10 @@ export class Avatars {
       const hc = HELD[a.slot] !== undefined ? HELD[a.slot] : HELD[0];
       if (a.heldMat.color.getHex() !== hc) a.heldMat.color.setHex(hc);
       const dx = a.pos.x - cam.position.x, dz = a.pos.z - cam.position.z;
-      a.tag.visible = dx * dx + dz * dz < 55 * 55;
+      // teammates get a green tag that stays readable from far away
+      const mate = !!G.team && a.team === G.team;
+      if (a.tag.userData.mate !== mate) drawTag(a.tag, a.tag.userData.name, mate);
+      a.tag.visible = dx * dx + dz * dz < (mate ? 200 * 200 : 55 * 55);
     }
   }
 }

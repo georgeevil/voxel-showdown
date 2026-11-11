@@ -25,7 +25,7 @@ export class Lobby {
     $('bots-val').textContent = this.bots.value;
     $('start-btn').addEventListener('click', () => {
       audio.unlock(); audio.ui();
-      net.send({ t: 'start', bots: Math.max(0, Math.min(MAX_BOTS, this.bots.value | 0)), difficulty: G.settings.difficulty, theme: G.settings.theme });
+      net.send({ t: 'start', bots: Math.max(0, Math.min(MAX_BOTS, this.bots.value | 0)), difficulty: G.settings.difficulty, theme: G.settings.theme, mode: G.settings.mode });
       input.lock();
     });
     $('resume-btn').addEventListener('click', () => { audio.unlock(); audio.ui(); input.lock(); });
@@ -49,6 +49,7 @@ export class Lobby {
     seg($('difficulty'), BOT_LEVEL_IDS.map((id) => [id, BOT_LEVELS[id].name]), () => G.settings.difficulty, (v) => { G.settings.difficulty = v; saveSettings(); });
     if (G.settings.theme !== 'random' && !THEMES[G.settings.theme]) G.settings.theme = 'random';
     seg($('theme'), [['random', 'Random'], ...THEME_IDS.map((id) => [id, THEMES[id].name])], () => G.settings.theme, (v) => { G.settings.theme = v; saveSettings(); });
+    seg($('mode-pick'), [['team', 'Team vs bots'], ['solo', 'Everyone for themselves']], () => G.settings.mode, (v) => { G.settings.mode = v; saveSettings(); });
     seg($('heads'), HEADS.map((n, i) => [i, n]), () => G.settings.head, (v) => {
       G.settings.head = v; saveSettings();
       net.head = v;

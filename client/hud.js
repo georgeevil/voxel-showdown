@@ -251,18 +251,21 @@ export class Hud {
       const alive = me ? G.you.alive : p.alive !== false;
       const kills = (me ? G.you.kills : p.kills) | 0, lives = (me ? G.you.lives : p.lives) | 0;
       const back = me ? G.you.respawnIn > 0 : !alive && lives > 0;
-      rows.push({ p, me, alive, kills, lives, back });
+      rows.push({ p, me, alive, kills, lives, back, mate: !me && !!G.team && p.team === G.team, foe: !!G.team && !!p.team && p.team !== G.team });
     }
-    rows.sort((a, b) => (b.alive - a.alive) || (b.kills - a.kills) || (a.p.id - b.p.id));
+    rows.sort((a, b) => (a.foe - b.foe) || (b.alive - a.alive) || (b.kills - a.kills) || (a.p.id - b.p.id));
     let sig = G.state;
-    for (const r of rows) sig += '|' + r.p.id + r.p.name + r.alive + r.kills + r.lives + r.back;
+    for (const r of rows) sig += '|' + r.p.id + r.p.name + r.alive + r.kills + r.lives + r.back + r.mate + r.foe;
     if (sig === this.boardSig) return;
     this.boardSig = sig;
     box.style.display = 'block';
     box.textContent = '';
-    box.append(el('div', 'head', live ? 'Players · kills' : 'Players'));
+    const teams = live && !!G.team;
+    box.append(el('div', 'head', teams ? 'Your team · kills' : live ? 'Players · kills' : 'Players'));
+    let foeHead = false;
     for (const r of rows.slice(0, 14)) {
-      const d = el('div', 'row' + (r.me ? ' me' : '') + (live && !r.alive ? ' out' : ''));
+      if (teams && r.foe && !foeHead) { foeHead = true; box.append(el('div', 'head foes', 'Bots')); }
+      const d = el('div', 'row' + (r.me ? ' me' : '') + (r.mate ? ' mate' : '') + (live && !r.alive ? ' out' : ''));
       const dot = el('i');
       dot.style.background = idCss(r.p.id);
       const status = !live ? (r.p.bot ? 'bot' : '') : r.alive ? '♥'.repeat(Math.min(3, 1 + r.lives)) : r.back || r.lives > 0 ? 'down' : 'out';

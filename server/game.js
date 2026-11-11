@@ -125,7 +125,7 @@ export class Game {
   }
 
   stateMsg() {
-    return { t: 'state', state: this.state, timer: r2(Math.max(0, this.timer)), winner: this.winner, winnerName: this.winnerName };
+    return { t: 'state', state: this.state, timer: r2(Math.max(0, this.timer)), winner: this.winner, winnerName: this.winnerName, winnerTeam: this.winnerTeam || 0, mode: this.mode || 'solo' };
   }
 
   // Send queued block edits and changed `you` blocks. Called after every message and tick.
@@ -154,6 +154,7 @@ export class Game {
       slot: 0, reloading: false, reloadT: 0, kills: 0, dirty: false,
       stormAcc: 0, lives: 0, respawnT: 0, protectT: 0,
       head: Math.floor(Math.random() * HEADS.length),
+      team: 0, // 0 = no team (free-for-all); in team mode humans are 1, bots are 2
       // one fire-rate bucket per hotbar slot, each starting full
       fireTokens: WEAPON_IDS.map(() => 2), fireAt: WEAPON_IDS.map(() => performance.now()),
       lastPosAt: performance.now(), lastCorrectAt: 0,
@@ -278,10 +279,12 @@ export class Game {
 
   // ------------------------------------------------------------------ match flow
 
-  beginCountdown(bots, difficulty, theme) {
+  beginCountdown(bots, difficulty, theme, mode) {
+    // 'team': every human on one team against a team of bots, no friendly fire
+    this.mode = mode === 'team' ? 'team' : 'solo';
     if (typeof difficulty === 'string' && Object.hasOwn(BOT_LEVELS, difficulty)) this.botLevelId = difficulty;
     this.botLevel = BOT_LEVELS[this.botLevelId || 'normal'];
-    bots = clamp(Math.floor(fin(bots) ? bots : 0), 0, MAX_BOTS);
+    bots = clamp(Math.floor(fin(bots) ? bots : 0), this.mode === 'team' ? 1 : 0, MAX_BOTS);
     // 'random' picks a theme; an explicit id is used as is; anything else means meadow
     this.loadWorld(newSeed(), theme === 'random' ? THEME_IDS[Math.floor(Math.random() * THEME_IDS.length)] : theme);
     this.broadcast({ t: 'world', seed: this.seed, theme: this.theme });
@@ -292,12 +295,14 @@ export class Game {
       this.resetLoadout(pl);
       pl.alive = true;
       pl.lives = !pl.bot && bots > 0 ? RESPAWN.LIVES_WITH_BOTS : 0;
+      pl.team = this.mode === 'team' ? (pl.bot ? 2 : 1) : 0;
       if (pl.bot) initBot(pl);
     }
     this.spawnAll(all);
     this.resetStorm();
     this.winner = null;
     this.winnerName = '';
+    this.winnerTeam = 0;
     this.state = STATE.COUNTDOWN;
     this.timer = COUNTDOWN_SECS;
     this.flush();
@@ -316,11 +321,12 @@ export class Game {
     this.broadcast(this.stateMsg());
   }
 
-  endMatch(winner) {
+  endMatch(winner, team = 0) {
     this.state = STATE.ENDED;
     this.timer = ENDED_SECS;
     this.winner = winner ? winner.id : null;
-    this.winnerName = winner ? winner.name : '';
+    this.winnerTeam = team;
+    this.winnerName = team === 1 ? 'The players' : team === 2 ? 'The bots' : winner ? winner.name : '';
     for (const pl of this.players.values()) { if (pl.respawnT > 0) { pl.respawnT = 0; pl.dirty = true; } }
     this.broadcast(this.stateMsg());
     if (!this.quiet) console.log(`match over, winner: ${this.winnerName || 'nobody'}`);
@@ -339,6 +345,7 @@ export class Game {
       pl.sh = 0;
       pl.stormAcc = 0;
       pl.lives = 0; pl.respawnT = 0; pl.protectT = 0;
+      pl.team = 0;
       pl.reloading = false;
       pl.dirty = true;
     }
@@ -349,6 +356,16 @@ export class Game {
 
   checkMatchEnd() {
     if (this.state !== STATE.PLAYING) return;
+    if (this.mode === 'team') {
+      // over when one side has nobody left (alive or waiting to respawn)
+      let t1 = 0, t2 = 0;
+      for (const pl of this.players.values()) {
+        if (!(pl.alive || pl.respawnT > 0)) continue;
+        if (pl.team === 1) t1++; else if (pl.team === 2) t2++;
+      }
+      if (t1 === 0 || t2 === 0) this.endMatch(null, t1 > 0 ? 1 : t2 > 0 ? 2 : 0);
+      return;
+    }
     let alive = 0, last = null;
     for (const pl of this.players.values()) if (pl.alive || pl.respawnT > 0) { alive++; last = pl; }
     if (this.matchStartCount >= 2 ? alive <= 1 : alive === 0) this.endMatch(alive === 1 ? last : null);
@@ -360,7 +377,7 @@ export class Game {
     else if (state === STATE.COUNTDOWN) {
       let bots = 0;
       for (const pl of this.players.values()) if (pl.bot) bots++;
-      this.beginCountdown(bots, undefined, this.theme);
+      this.beginCountdown(bots, undefined, this.theme, this.mode);
     } else if (state === STATE.PLAYING) this.beginPlaying();
     else if (state === STATE.ENDED) {
       let alive = 0, last = null;
@@ -520,6 +537,7 @@ export class Game {
   damage(victim, dmg, attacker, w) {
     if (this.state !== STATE.PLAYING || !victim.alive || !(dmg > 0)) return false;
     if (victim.protectT > 0) return false;
+    if (attacker && attacker !== victim && attacker.team && attacker.team === victim.team) return false; // no friendly fire
     if (attacker && attacker.bot && this.botLevel) dmg *= this.botLevel.dmg;
     dmg = Math.round(dmg);
     let left = dmg;
@@ -756,7 +774,7 @@ export class Game {
       let best = hb ? hb.dist : range, victim = null;
       if (pvp) {
         for (const q of this.players.values()) {
-          if (q === pl || !q.alive) continue;
+          if (q === pl || !q.alive || (pl.team && q.team === pl.team)) continue; // shots pass through teammates
           const p = q.p;
           if (Math.abs(p[0] - o[0]) > best + 1 || Math.abs(p[2] - o[2]) > best + 1) continue;
           mn[0] = p[0] - HW - HIT_PAD; mn[1] = p[1]; mn[2] = p[2] - HW - HIT_PAD;
@@ -812,7 +830,7 @@ export class Game {
       }
     }
     for (const q of this.players.values()) {
-      if (!q.alive) continue;
+      if (!q.alive || (q !== by && by.team && q.team === by.team)) continue;
       const d = Math.hypot(q.p[0] - c[0], q.p[1] + 0.9 - c[1], q.p[2] - c[2]);
       if (d >= blast.radius) continue;
       const dmg = blast.dmg * (1 - d / blast.radius) * (q === by ? blast.self : 1);
@@ -884,7 +902,8 @@ export class Game {
         case 'pos': this.onPos(pl, m); break;
         case 'start':
           if (this.state === STATE.LOBBY) {
-            this.beginCountdown(fin(m.bots) ? m.bots : 0, m.difficulty, m.theme);
+            this.beginCountdown(fin(m.bots) ? m.bots : 0, m.difficulty, m.theme, m.mode);
+            if (this.mode === 'team') this.broadcast({ t: 'chat', id: null, name: '', text: 'Team match: everyone together against the bots' });
             this.broadcast({ t: 'chat', id: null, name: '', text: `New island: ${THEMES[this.theme].name}` });
             if (fin(m.bots) && m.bots >= 1) this.broadcast({ t: 'chat', id: null, name: '', text: `${pl.name} started a match — bots: ${this.botLevel.name}` });
           }
@@ -928,7 +947,7 @@ export class Game {
       const p = pl.p;
       players.push({
         id: pl.id, p: [r2(p[0]), r2(p[1]), r2(p[2])], yaw: r3(pl.yaw), pitch: r3(pl.pitch),
-        hp: pl.hp, sh: pl.sh, alive: pl.alive, slot: pl.slot, k: pl.kills, l: pl.lives,
+        hp: pl.hp, sh: pl.sh, alive: pl.alive, slot: pl.slot, k: pl.kills, l: pl.lives, tm: pl.team,
       });
     }
     return JSON.stringify({

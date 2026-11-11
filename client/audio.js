@@ -87,9 +87,21 @@ export class AudioFx {
       this.noise(0.5, 0.55 * gain, 3600, 'lowpass', 0.5, 0, pan, 180);
       this.tone(240, 0.3, 'square', 0.22 * gain, 32, 0, pan);
       this.noise(0.7, 0.12 * gain, 700, 'bandpass', 1.2, 0.08, pan);
+    } else if (w === 'bazooka') {
+      this.noise(0.45, 0.5 * gain, 1200, 'lowpass', 0.7, 0, pan, 300); // launch whoosh
+      this.tone(90, 0.3, 'sawtooth', 0.2 * gain, 40, 0, pan);
+    } else if (w === 'sword') {
+      this.noise(0.12, 0.2 * gain, 2600, 'bandpass', 2.2, 0, pan, 900); // swish
     } else {
       this.noise(0.07, 0.12 * gain, 900, 'bandpass', 1.5, 0, pan); // pickaxe whoosh
     }
+  }
+
+  boom(gain = 1, pan = 0) {
+    if (gain < 0.02) return;
+    this.noise(0.9, 0.9 * gain, 900, 'lowpass', 0.5, 0, pan, 90);
+    this.tone(70, 0.6, 'sine', 0.5 * gain, 26, 0, pan);
+    this.noise(1.4, 0.18 * gain, 300, 'lowpass', 0.6, 0.1, pan);
   }
 
   pickHit(gain = 1) {

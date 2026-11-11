@@ -79,19 +79,20 @@ function think(game, bot, ai) {
 
 function pickWeapon(game, bot, dist) {
   // preference by range; fall back to anything with ammo, then the pickaxe
-  const order = dist < 12 ? [2, 1, 3] : dist > 40 ? [3, 1, 2] : [1, 3, 2];
+  // (slots: 1 rifle, 2 shotgun, 3 sniper, 4 bazooka, 5 sword; no bazooka up close)
+  const order = dist < 12 ? [2, 1, 3] : dist > 40 ? [3, 1, 4, 2] : [1, 4, 3, 2];
   for (const s of order) {
     if (bot.owned[s] && bot.ammo[s] + bot.reserve[s] > 0) return s;
   }
-  return 0;
+  return bot.owned[5] ? 5 : 0;
 }
 
 function shoot(game, bot, ai, target, dist) {
   const slot = pickWeapon(game, bot, dist);
   if (bot.slot !== slot) { game.selectSlot(bot, slot); ai.nextFire = Math.max(ai.nextFire, game.time + 0.35); return; }
   const W = WEAPONS[WEAPON_IDS[slot]];
-  if (slot === 0) {
-    if (dist > PLAYER.REACH) return;
+  if (W.melee) {
+    if (dist > W.range) return;
   } else {
     if (dist > W.range) return;
     if (bot.reloading) return;
@@ -100,7 +101,7 @@ function shoot(game, bot, ai, target, dist) {
   const eye = game.eyeOf(bot);
   // deliberate inaccuracy: roughly 35 % at mid range, better up close, worse far away
   const L = level(game);
-  const pHit = Math.min(0.92, (slot === 0 ? 0.7 : Math.min(0.42, Math.max(0.12, 0.47 - 0.006 * dist))) * L.hit);
+  const pHit = Math.min(0.92, (W.melee ? 0.7 : Math.min(0.42, Math.max(0.12, 0.47 - 0.006 * dist))) * L.hit);
   let ax = target.p[0], ay = target.p[1] + 0.95, az = target.p[2];
   if (Math.random() < pHit) {
     ax += (Math.random() - 0.5) * 0.2; ay += (Math.random() - 0.5) * 0.5; az += (Math.random() - 0.5) * 0.2;

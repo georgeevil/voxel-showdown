@@ -276,3 +276,6 @@ body.touch #vitals { bottom: auto; top: 250px; width: 220px; }
 body.touch #mats { bottom: 16px; }
 body.touch #chat, body.touch #controls { display: none; }
 body.touch #touch-note { display: block !important; }
+
+.slot.gone { display: none; }
+#hotbar .slot { width: 74px; }

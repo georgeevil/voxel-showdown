@@ -63,11 +63,38 @@ function makeSniper() {
   return g;
 }
 
+function makeBazooka() {
+  const g = new THREE.Group();
+  box(g, 0.13, 0.13, 0.8, 0x4d5a3a, 0, 0.02, -0.1);
+  box(g, 0.16, 0.16, 0.1, 0x2e3624, 0, 0.02, -0.52);
+  box(g, 0.15, 0.15, 0.08, 0x2e3624, 0, 0.02, 0.32);
+  box(g, 0.05, 0.14, 0.06, 0x1b1f18, 0, -0.1, -0.08);
+  box(g, 0.05, 0.11, 0.05, 0x1b1f18, 0, -0.09, 0.1);
+  box(g, 0.04, 0.07, 0.12, 0x14181c, 0.085, 0.08, -0.12);
+  box(g, 0.09, 0.09, 0.06, 0xd8452a, 0, 0.02, -0.59);
+  g.userData.muzzle = -0.62;
+  return g;
+}
+function makeSword() {
+  const g = new THREE.Group();
+  box(g, 0.045, 0.62, 0.012, 0xdfe7ee, 0, 0.36, 0);
+  box(g, 0.02, 0.62, 0.016, 0xa9b6c2, 0, 0.36, 0);
+  box(g, 0.035, 0.06, 0.012, 0xdfe7ee, 0, 0.69, 0);
+  box(g, 0.2, 0.035, 0.04, 0xe2b53a, 0, 0.04, 0);
+  box(g, 0.035, 0.15, 0.035, 0x4a2f1c, 0, -0.05, 0);
+  box(g, 0.05, 0.04, 0.05, 0xe2b53a, 0, -0.14, 0);
+  g.rotation.set(0.5, 0.2, -0.35);
+  g.position.set(0.0, -0.08, -0.12);
+  g.scale.setScalar(0.72);
+  return g;
+}
+
 export class ViewModel {
   constructor(scene) {
     this.root = new THREE.Group();
     scene.add(this.root);
-    this.items = [makePickaxe(), makeRifle(), makeShotgun(), makeSniper()];
+    this.items = [makePickaxe(), makeRifle(), makeShotgun(), makeSniper(), makeBazooka(), makeSword()];
+    this.buildIndex = this.items.length; // the build tool sits after the weapon slots
     this.buildItem = new THREE.Group();
     this.buildCube = box(this.buildItem, 0.17, 0.17, 0.17, 0xffffff, 0, 0, -0.1);
     this.buildCube.material = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -91,7 +118,7 @@ export class ViewModel {
     this.show(0);
   }
 
-  // index 0..3 weapon slots, 4 = build tool
+  // index 0..5 weapon slots, buildIndex = build tool
   show(i) {
     if (i === this.current) return;
     this.current = i;

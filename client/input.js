@@ -2,7 +2,7 @@
 import { G } from './state.js';
 
 const GAME_KEYS = new Set(['Space', 'Tab', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight',
-  'Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyE', 'KeyR', 'KeyG', 'KeyB', 'KeyM', 'F3',
+  'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'KeyQ', 'KeyE', 'KeyR', 'KeyG', 'KeyB', 'KeyM', 'F3',
   'KeyF', 'KeyC', 'KeyZ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyI', 'KeyJ', 'KeyK', 'KeyL']);
 const FIRE_KEY = 'KeyF';                 // keyboard trigger: lets touchpad players aim and fire at once
 const ZOOM_KEYS = new Set(['KeyC', 'KeyZ']); // toggle aim instead of holding the right button

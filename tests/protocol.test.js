@@ -48,7 +48,7 @@ describe('protocol: lobby', T, () => {
     assert.equal(you.sh, 0);
     assert.equal(you.alive, true);
     assert.deepEqual(Object.keys(you.mats).sort(), ['metal', 'stone', 'wood']);
-    assert.deepEqual(you.owned, [true, false, false, false]);
+    assert.deepEqual(you.owned, [true, false, false, false, false, true]);
     assert.equal(you.ammo.length, HOTBAR_SLOTS);
     assert.equal(you.reserve.length, HOTBAR_SLOTS);
     assert.equal(you.slot, 0);
@@ -349,7 +349,7 @@ describe('protocol: lobby', T, () => {
     assert.ok(ed);
     assert.equal(game.world.get(cx, cy, cz), B.AIR);
     assert.equal(b.find('loot'), null, 'loot goes to the opener only');
-    const you = await a.waitFor('you', (m) => m.owned.filter(Boolean).length === 2);
+    const you = await a.waitFor('you', (m) => m.owned.filter(Boolean).length === 3);
     const slot = you.owned.findIndex((o, i) => o && !before.owned[i]);
     assert.ok(slot >= 1, 'first chest must grant a not-yet-owned weapon');
     const w = WEAPONS[WEAPON_IDS[slot]];

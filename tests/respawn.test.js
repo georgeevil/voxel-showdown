@@ -65,3 +65,50 @@ describe('respawn lives in matches with bots', T, () => {
     assert.equal(ctx.player(a.id).lives, 0);
   });
 });
+
+describe('sword and bazooka', T, () => {
+  let ctx, game, a, b;
+  before(async () => { ctx = await boot(); game = ctx.game; a = await ctx.client('Rocketeer'); b = await ctx.client('Target'); }, T);
+  after(async () => { if (ctx) await ctx.close(); }, T);
+
+  test('everyone starts with the sword; it hits hard up close and does not reach far', T, async () => {
+    const pa = ctx.player(a.id), pb = ctx.player(b.id);
+    const SWORD = 5;
+    assert.equal(pa.owned[SWORD], true);
+    game.setState(STATE.PLAYING);
+    const y = 46; // open sky, nothing in the way
+    pa.p = [80.5, y, 80.5]; pb.p = [80.5, y, 78.5]; // 2 blocks apart
+    game.selectSlot(pa, SWORD);
+    assert.equal(game.fire(pa, game.eyeOf(pa), [0, -0.3, -1], true), true);
+    assert.equal(pb.hp, PLAYER.MAX_HP - 45);
+    pb.p = [80.5, y, 74.5]; // 6 blocks: out of reach
+    game.fire(pa, game.eyeOf(pa), [0, -0.3, -1], true);
+    assert.equal(pb.hp, PLAYER.MAX_HP - 45);
+  });
+
+  test('bazooka blast breaks blocks, hurts players nearby and the shooter less', T, async () => {
+    const pa = ctx.player(a.id), pb = ctx.player(b.id);
+    pa.hp = pb.hp = PLAYER.MAX_HP;
+    game.grant(a.id, 'bazooka');
+    game.selectSlot(pa, 4);
+    // build a small target wall in the sky and stand the victim next to it
+    const y = 44;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = 0; dy <= 2; dy++) game.setBlock(80 + dx, y + dy, 70, 7);
+    pa.p = [80.5, y, 80.5]; pb.p = [82.5, y, 71.5];
+    a.mark();
+    assert.equal(game.fire(pa, game.eyeOf(pa), [0, 0, -1], true), true);
+    game.flush();
+    const shot = await a.waitFor('shot', (m) => m.w === 'bazooka');
+    assert.ok(Array.isArray(shot.boom), 'shot carries the blast point');
+    assert.equal(game.world.get(80, y + 1, 70), 0, 'wall block at the impact is gone');
+    assert.ok(pb.hp < PLAYER.MAX_HP, 'player beside the blast is hurt');
+    assert.equal(pa.hp, PLAYER.MAX_HP, 'shooter 10 blocks away is untouched');
+    assert.equal(pa.ammo[4], 0, 'one rocket per magazine');
+    // point blank into the ground hurts the shooter, at the reduced rate
+    pa.ammo[4] = 1; pa.reloading = false;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) game.setBlock(60 + dx, 40, 60 + dz, 3);
+    pa.p = [60.5, 41, 60.5];
+    game.fire(pa, game.eyeOf(pa), [0, -1, 0], true);
+    assert.ok(pa.hp < PLAYER.MAX_HP && pa.hp > PLAYER.MAX_HP - 60, `self damage is reduced, hp ${pa.hp}`);
+  });
+});

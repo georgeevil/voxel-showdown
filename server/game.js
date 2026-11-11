@@ -11,6 +11,7 @@ import {
   RESPAWN,
   BOT_LEVELS, HEADS,
   THEMES, THEME_IDS,
+  START_WEAPONS,
 } from '../shared/constants.js';
 import { World, raycast, pieceCells, rayAABB } from '../shared/world.js';
 import { handleHttp, lanUrls } from './static.js';
@@ -167,7 +168,7 @@ export class Game {
     pl.hp = PLAYER.MAX_HP;
     pl.sh = 0;
     pl.mats = { ...START_MATS };
-    pl.owned = WEAPON_IDS.map((_, i) => i === 0).slice(0, HOTBAR_SLOTS);
+    pl.owned = WEAPON_IDS.map((id) => START_WEAPONS.includes(id)).slice(0, HOTBAR_SLOTS);
     pl.ammo = pl.owned.map(() => 0);
     pl.reserve = pl.owned.map(() => 0);
     pl.slot = 0;
@@ -637,7 +638,10 @@ export class Game {
     const rnd = this.rand;
     const parts = [];
     const missing = [], have = [];
-    for (let i = 1; i < HOTBAR_SLOTS; i++) (pl.owned[i] ? have : missing).push(i);
+    for (let i = 1; i < HOTBAR_SLOTS; i++) {
+      if (!pl.owned[i]) missing.push(i);
+      else if (WEAPONS[WEAPON_IDS[i]].mag > 0) have.push(i); // only weapons that use ammo
+    }
     if (missing.length) {
       const slot = missing[Math.floor(rnd() * missing.length)];
       const W = WEAPONS[WEAPON_IDS[slot]];
@@ -722,13 +726,14 @@ export class Game {
     const eye = this.eyeOf(pl);
     // a rejected human shot was already predicted client-side: resync its ammo display
     if (Math.hypot(o[0] - eye[0], o[1] - eye[1], o[2] - eye[2]) > 2.5) { if (!trusted) pl.dirty = true; return false; }
-    const melee = wid === 'pickaxe';
+    const melee = !!W.melee, pick = wid === 'pickaxe';
+    let boom = null;
     if (W.mag > 0 && pl.ammo[slot] <= 0) { this.startReload(pl); return false; }
     if (!trusted && !this.takeFireToken(pl, W)) { pl.dirty = true; return false; }
     if (W.mag > 0) { pl.ammo[slot]--; pl.dirty = true; }
 
     const dir = [d[0] / len, d[1] / len, d[2] / len];
-    const range = melee ? PLAYER.REACH : W.range;
+    const range = W.range;
     const pvp = this.state === STATE.PLAYING;
     const ends = [];
     const hits = new Map(); // victim -> { dmg, head }
@@ -762,7 +767,11 @@ export class Game {
       }
       const end = [o[0] + pd[0] * best, o[1] + pd[1] * best, o[2] + pd[2] * best];
       ends.push([r2(end[0]), r2(end[1]), r2(end[2])]);
-      if (victim) {
+      if (W.blast) {
+        // explode just short of whatever was hit, so the blast is on the near side
+        const back = Math.min(0.3, best);
+        boom = [end[0] - pd[0] * back, end[1] - pd[1] * back, end[2] - pd[2] * back];
+      } else if (victim) {
         const head = end[1] > victim.p[1] + 1.45;
         const h = hits.get(victim) || { dmg: 0, head: false };
         h.dmg += W.dmg * (head ? HEADSHOT_MULT : 1);
@@ -771,17 +780,47 @@ export class Game {
       } else if (hb) {
         // re-read: an earlier pellet of this shot may already have broken it
         const cur = this.world.get(hb.x, hb.y, hb.z);
-        if (cur !== B.AIR) this.damageBlock(hb.x, hb.y, hb.z, cur, W.blockDmg, pl, melee);
+        if (cur !== B.AIR) this.damageBlock(hb.x, hb.y, hb.z, cur, W.blockDmg, pl, pick);
       }
     }
 
-    this.broadcast({ t: 'shot', id: pl.id, w: wid, o: [r2(o[0]), r2(o[1]), r2(o[2])], ends, hitPlayer: hits.size > 0 });
+    if (boom) this.explode(boom, pl, W.blast, wid, hits);
+    const shot = { t: 'shot', id: pl.id, w: wid, o: [r2(o[0]), r2(o[1]), r2(o[2])], ends, hitPlayer: hits.size > 0 };
+    if (boom) shot.boom = [r2(boom[0]), r2(boom[1]), r2(boom[2])];
+    this.broadcast(shot);
     for (const [victim, h] of hits) {
       const dmg = Math.round(h.dmg);
       const died = this.damage(victim, dmg, pl, wid);
-      this.send(pl, { t: 'hitmark', dmg, head: h.head, kill: died });
+      if (victim !== pl) this.send(pl, { t: 'hitmark', dmg, head: h.head, kill: died });
     }
     return true;
+  }
+
+  // Explosion at point c: breaks nearby blocks and queues damage for players in range
+  // (added to `hits`, which fire() then applies). The shooter is hurt too, at a discount.
+  explode(c, by, blast, wid, hits) {
+    const R = blast.blockRadius, r = Math.ceil(R);
+    const cx = Math.floor(c[0]), cy = Math.floor(c[1]), cz = Math.floor(c[2]);
+    for (let y = cy - r; y <= cy + r; y++) {
+      for (let z = cz - r; z <= cz + r; z++) {
+        for (let x = cx - r; x <= cx + r; x++) {
+          const d = Math.hypot(x + 0.5 - c[0], y + 0.5 - c[1], z + 0.5 - c[2]);
+          if (d > R) continue;
+          const cur = this.world.get(x, y, z);
+          if (cur !== B.AIR) this.damageBlock(x, y, z, cur, blast.blockDmg * (1 - 0.6 * d / R), null, false);
+        }
+      }
+    }
+    for (const q of this.players.values()) {
+      if (!q.alive) continue;
+      const d = Math.hypot(q.p[0] - c[0], q.p[1] + 0.9 - c[1], q.p[2] - c[2]);
+      if (d >= blast.radius) continue;
+      const dmg = blast.dmg * (1 - d / blast.radius) * (q === by ? blast.self : 1);
+      if (dmg < 1) continue;
+      const h = hits.get(q) || { dmg: 0, head: false };
+      h.dmg += dmg;
+      hits.set(q, h);
+    }
   }
 
   // ------------------------------------------------------------------ messages

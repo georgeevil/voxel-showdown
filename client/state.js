@@ -1,6 +1,8 @@
 // Shared mutable client state. Every module reads from here; only main.js and the
 // net handlers write to it.
-import { STATE, STORM_START_RADIUS, WORLD } from '../shared/constants.js';
+import { STATE, STORM_START_RADIUS, WORLD, HOTBAR_SLOTS, WEAPON_IDS, START_WEAPONS } from '../shared/constants.js';
+
+const N = HOTBAR_SLOTS;
 
 export const G = {
   id: null,
@@ -14,9 +16,9 @@ export const G = {
   you: {
     hp: 100, sh: 0, alive: true,
     mats: { wood: 0, stone: 0, metal: 0 },
-    owned: [true, false, false, false],
-    ammo: [0, 0, 0, 0],
-    reserve: [0, 0, 0, 0],
+    owned: WEAPON_IDS.map((id) => START_WEAPONS.includes(id)),
+    ammo: WEAPON_IDS.map(() => 0),
+    reserve: WEAPON_IDS.map(() => 0),
     slot: 0, reloading: false, kills: 0,
     lives: 0, respawnIn: 0,
   },
@@ -62,10 +64,10 @@ export function applyYou(m) {
   if (m.mats && typeof m.mats === 'object') {
     for (const k of ['wood', 'stone', 'metal']) if (isNum(m.mats[k])) y.mats[k] = m.mats[k];
   }
-  if (Array.isArray(m.owned)) for (let i = 0; i < 4; i++) y.owned[i] = !!m.owned[i];
-  if (Array.isArray(m.ammo)) for (let i = 0; i < 4; i++) y.ammo[i] = isNum(m.ammo[i]) ? m.ammo[i] : 0;
-  if (Array.isArray(m.reserve)) for (let i = 0; i < 4; i++) y.reserve[i] = isNum(m.reserve[i]) ? m.reserve[i] : 0;
-  if (isNum(m.slot)) y.slot = Math.max(0, Math.min(3, m.slot | 0));
+  if (Array.isArray(m.owned)) for (let i = 0; i < N; i++) y.owned[i] = !!m.owned[i];
+  if (Array.isArray(m.ammo)) for (let i = 0; i < N; i++) y.ammo[i] = isNum(m.ammo[i]) ? m.ammo[i] : 0;
+  if (Array.isArray(m.reserve)) for (let i = 0; i < N; i++) y.reserve[i] = isNum(m.reserve[i]) ? m.reserve[i] : 0;
+  if (isNum(m.slot)) y.slot = Math.max(0, Math.min(N - 1, m.slot | 0));
   if (typeof m.reloading === 'boolean') y.reloading = m.reloading;
   if (isNum(m.kills)) y.kills = m.kills;
   if (isNum(m.lives)) { y.lives = m.lives; if (m.lives > 0) G.livesMode = true; }

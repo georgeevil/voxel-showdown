@@ -1,12 +1,12 @@
 // Combat mode: targeting, firing cadence, reload, slot selection, chest interaction, zoom.
-import { WEAPONS, WEAPON_IDS, PLAYER, B } from '../shared/constants.js';
+import { WEAPONS, WEAPON_IDS, PLAYER, B, HOTBAR_SLOTS } from '../shared/constants.js';
 import { raycast } from '../shared/world.js';
 import { G } from './state.js';
 import { r2, r4 } from './net.js';
 import { blockColorLinear } from './mesher.js';
 
-const RECOIL = { rifle: 0.011, shotgun: 0.05, sniper: 0.075 };
-const KICK = { rifle: 1, shotgun: 2.6, sniper: 3 };
+const RECOIL = { rifle: 0.011, shotgun: 0.05, sniper: 0.075, bazooka: 0.09 };
+const KICK = { rifle: 1, shotgun: 2.6, sniper: 3, bazooka: 3.2 };
 const tmpCol = [0, 0, 0];
 
 export class Combat {
@@ -26,7 +26,7 @@ export class Combat {
 
   selectSlot(i, now) {
     const you = G.you;
-    if (i < 0 || i > 3) return;
+    if (i < 0 || i >= HOTBAR_SLOTS) return;
     if (!you.owned[i]) { this.audio.deny(); return; }
     if (i === you.slot) return;
     you.slot = i;
@@ -40,8 +40,8 @@ export class Combat {
 
   cycleSlot(dir, now) {
     const you = G.you;
-    for (let k = 1; k <= 4; k++) {
-      const i = (you.slot + dir * k + 8) % 4;
+    for (let k = 1; k <= HOTBAR_SLOTS; k++) {
+      const i = (you.slot + dir * k + HOTBAR_SLOTS * 2) % HOTBAR_SLOTS;
       if (you.owned[i]) { this.selectSlot(i, now); return; }
     }
   }
@@ -70,7 +70,7 @@ export class Combat {
     this.chest = !!(t && t.block === B.CHEST && t.dist <= PLAYER.REACH + 1);
     if (t && !this.chest && (t.dist > PLAYER.REACH || this.build.active)) this.target = null;
 
-    const wantZoom = canAct && input.rmb && you.slot > 0 && !this.build.active && !you.reloading;
+    const wantZoom = canAct && input.rmb && !w.melee && !this.build.active && !you.reloading;
     this.zoom += ((wantZoom ? 1 : 0) - this.zoom) * Math.min(1, dt * 14);
     const moving = this.player.speed > 1 ? 4 : 0;
     this.spread += ((w.spread * 180 + moving + (this.player.s.onGround ? 0 : 5)) * (1 - this.zoom * 0.6) - this.spread) * Math.min(1, dt * 12);
@@ -102,10 +102,10 @@ export class Combat {
     this.nextFire = now + 1000 / w.rate + 6;
     this.net.send({ t: 'fire', o: [r2(eye[0]), r2(eye[1]), r2(eye[2])], d: [r4(dir[0]), r4(dir[1]), r4(dir[2])] });
 
-    if (id === 'pickaxe') {
+    if (w.melee) {
       this.vm.swingNow();
-      this.audio.shot('pickaxe');
-      if (t && t.dist <= PLAYER.REACH && t.block !== B.AIR) {
+      this.audio.shot(id);
+      if (id === 'pickaxe' && t && t.dist <= PLAYER.REACH && t.block !== B.AIR) {
         const hx = eye[0] + dir[0] * t.dist + t.nx * 0.05, hy = eye[1] + dir[1] * t.dist + t.ny * 0.05, hz = eye[2] + dir[2] * t.dist + t.nz * 0.05;
         this.fx.burst(hx, hy, hz, blockColorLinear(t.block, tmpCol), 5, 3.5, 0.09, 0.08);
         this.audio.pickHit();

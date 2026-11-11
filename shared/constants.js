@@ -50,13 +50,20 @@ export const PLAYER = {
 // slot 0 is always the pickaxe. dmg = per pellet vs players. blockDmg = per pellet vs blocks.
 // rate = shots/second. spread = radians (max cone half-angle). reload = seconds.
 export const WEAPONS = {
-  pickaxe: { name: 'Pickaxe', dmg: 20, blockDmg: 25, rate: 3,   mag: 0,  reload: 0,   pellets: 1, spread: 0,     range: 4.5, auto: true  },
+  pickaxe: { name: 'Pickaxe', dmg: 20, blockDmg: 25, rate: 3,   mag: 0,  reload: 0,   pellets: 1, spread: 0,     range: 4.5, auto: true, melee: true },
   rifle:   { name: 'Rifle',   dmg: 22, blockDmg: 12, rate: 7,   mag: 30, reload: 2.0, pellets: 1, spread: 0.018, range: 120, auto: true  },
   shotgun: { name: 'Shotgun', dmg: 11, blockDmg: 8,  rate: 1.1, mag: 5,  reload: 2.4, pellets: 9, spread: 0.075, range: 40,  auto: false },
   sniper:  { name: 'Sniper',  dmg: 95, blockDmg: 60, rate: 0.7, mag: 3,  reload: 2.8, pellets: 1, spread: 0.001, range: 200, auto: false },
+  // The rocket is instant. Where it lands it explodes: `blast.dmg` at the centre falling
+  // to 0 at `blast.radius` (the shooter takes `self` of that), and blocks within
+  // `blockRadius` take up to `blockDmg`.
+  bazooka: { name: 'Bazooka', dmg: 0,  blockDmg: 0,  rate: 0.6, mag: 1,  reload: 2.6, pellets: 1, spread: 0.004, range: 90,  auto: false,
+             blast: { radius: 4.5, dmg: 110, blockRadius: 2.7, blockDmg: 170, self: 0.5 } },
+  sword:   { name: 'Sword',   dmg: 45, blockDmg: 6,  rate: 2.2, mag: 0,  reload: 0,   pellets: 1, spread: 0,     range: 3.4, auto: true, melee: true },
 };
-export const WEAPON_IDS = ['pickaxe', 'rifle', 'shotgun', 'sniper'];
-export const HOTBAR_SLOTS = 4; // slot i holds WEAPON_IDS[i] if owned
+export const WEAPON_IDS = ['pickaxe', 'rifle', 'shotgun', 'sniper', 'bazooka', 'sword'];
+export const START_WEAPONS = ['pickaxe', 'sword']; // everyone has these from the start
+export const HOTBAR_SLOTS = 6; // slot i holds WEAPON_IDS[i] if owned
 export const HEADSHOT_MULT = 1.6; // hit point above (feet y + 1.45)
 
 // ---- Match ----

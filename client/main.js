@@ -1,6 +1,6 @@
 // Entry point: wires the modules together, handles server messages and runs the frame loop.
 import * as THREE from 'three';
-import { WORLD, STATE, WEAPONS, PLAYER, B, BLOCKS } from '../shared/constants.js';
+import { WORLD, STATE, WEAPONS, PLAYER, B, BLOCKS, HOTBAR_SLOTS } from '../shared/constants.js';
 import { World, raycast } from '../shared/world.js';
 import { setTheme, theme } from './theme.js';
 import { G, applyYou, applyStorm, playerName, isVec3, isNum, saveSettings } from './state.js';
@@ -271,7 +271,24 @@ net.on('shot', (m) => {
     oy -= 0.22;
     avatars.fired(m.id);
   }
-  const gain = mine ? 0 : distGain(m.o[0], m.o[1], m.o[2], w === 'pickaxe' ? 18 : 150);
+  const gain = mine ? 0 : distGain(m.o[0], m.o[1], m.o[2], WEAPONS[w].melee ? 18 : 150);
+  if (w === 'sword') { if (gain > 0.05) audio.shot('sword', gain); return; }
+  if (isVec3(m.boom)) {
+    // rocket: fat smoke trail, then a fireball with debris, a thump and a shake when close
+    const b = m.boom;
+    fx.tracer(ox, oy, oz, b[0], b[1], b[2], 0.12, 150);
+    FIRE[0] = 1; FIRE[1] = 0.45; FIRE[2] = 0.06;
+    fx.burst(b[0], b[1], b[2], FIRE, 26, 9, 0.3, 0.7);
+    FIRE[0] = 1; FIRE[1] = 0.85; FIRE[2] = 0.3;
+    fx.burst(b[0], b[1], b[2], FIRE, 14, 5, 0.22, 0.4);
+    FIRE[0] = 0.12; FIRE[1] = 0.12; FIRE[2] = 0.13;
+    fx.burst(b[0], b[1] + 0.4, b[2], FIRE, 18, 4, 0.34, 1.1);
+    const bg = distGain(b[0], b[1], b[2], 170);
+    audio.boom(bg, -Math.sin(relAngle(b[0], b[2])) * 0.8);
+    if (bg > 0.35) player.kickVel += (bg - 0.3) * 1.2;
+    if (!mine) audio.shot('bazooka', gain, -Math.sin(relAngle(m.o[0], m.o[2])) * 0.8);
+    return;
+  }
   if (w === 'pickaxe') {
     if (gain > 0.05 && ends.length && isVec3(ends[0]) && G.world) {
       const e0 = ends[0];
@@ -322,7 +339,7 @@ net.on('kill', (m) => {
   const fall = stormKill && m.w === 'fall';
   const kn = fall ? 'The void' : stormKill ? 'The storm' : playerName(m.killer);
   const vn = playerName(m.victim);
-  const wn = fall ? 'claimed' : stormKill ? 'swallowed' : m.killer === m.victim ? 'fell' : (WEAPONS[m.w] ? WEAPONS[m.w].name : 'eliminated');
+  const wn = fall ? 'claimed' : stormKill ? 'swallowed' : m.killer === m.victim ? 'blew up' : (WEAPONS[m.w] ? WEAPONS[m.w].name : 'eliminated');
   hud.feed(kn, vn, wn, m.killer === G.id || m.victim === G.id);
   if (m.victim === G.id) {
     G.you.alive = false;
@@ -386,7 +403,7 @@ input.onKey = (code) => {
   if (!G.you.alive) return;
   if (code.startsWith('Digit')) {
     const i = +code.slice(5) - 1;
-    if (i >= 0 && i < 4) { if (build.active) { build.piece = i; audio.ui(); } else { input.cancelZoom(); combat.selectSlot(i, now); } }
+    if (build.active) { if (i >= 0 && i < 4) { build.piece = i; audio.ui(); } } else if (i >= 0 && i < HOTBAR_SLOTS) { input.cancelZoom(); combat.selectSlot(i, now); }
   } else if (code === 'KeyQ' || code === 'KeyB') {
     input.cancelZoom();
     build.toggle();
@@ -580,7 +597,7 @@ function frame() {
   const nf = cam.fov + (fov - cam.fov) * Math.min(1, dt * 16);
   if (Math.abs(nf - cam.fov) > 0.01) { cam.fov = nf; cam.updateProjectionMatrix(); }
 
-  vm.show(build.active ? 4 : you.slot);
+  vm.show(build.active ? vm.buildIndex : you.slot);
   if (build.active) vm.setBuildMat(build.mat);
   vm.update(dt, mdx, mdy, player.bobT, player.bobAmp, !player.s.onGround, alive ? combat.zoom : 0);
   avatars.update(now, dt, cam);
@@ -638,6 +655,7 @@ function frame() {
   jsMs += (performance.now() - jsT0 - jsMs) * 0.05;
 }
 const mmStorm = {};
+const FIRE = [1, 0.5, 0.1];
 // block id -> [name, what the pickaxe yields, material]
 const TARGET_INFO = {
   [B.LOG]: ['Tree trunk', '+4 wood', 'wood'], [B.LEAVES]: ['Leaves', '+1 wood', 'wood'], [B.PLANKS]: ['Wood wall', '+1 wood', 'wood'],

@@ -25,7 +25,7 @@ use another port. If nobody else can connect, allow Node through your firewall.
 | Mouse, or I J K L | Look |
 | Left click or F | Swing pickaxe, fire, place a piece |
 | Right click (hold) or C (toggle) | Aim / sniper scope |
-| 1–4 or scroll | Weapon slot (pickaxe, rifle, shotgun, sniper) |
+| 1–6 or scroll | Weapon slot (pickaxe, rifle, shotgun, sniper, bazooka, sword) |
 | Q or B | Build mode (1–4 piece, R rotate, G material) |
 | E | Open chest |
 | R | Reload |
